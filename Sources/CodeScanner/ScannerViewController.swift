@@ -302,7 +302,7 @@ extension CodeScannerView {
             NSLayoutConstraint.activate([
                 imageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
                 imageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                imageView.widthAnchor.constraint(equalToConstant: 200),
+//                imageView.widthAnchor.constraint(equalToConstant: 200),
                 imageView.heightAnchor.constraint(equalToConstant: 200),
             ])
         }
