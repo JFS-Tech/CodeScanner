@@ -141,6 +141,16 @@ extension CodeScannerView {
             imageView.translatesAutoresizingMaskIntoConstraints = false
             return imageView
         }()
+
+        private lazy var viewFinderSquare: UIImageView? = {
+            guard let image = UIImage(named: "viewfindersquare", in: .module, with: nil) else {
+                return nil
+            }
+
+            let imageView = UIImageView(image: image)
+            imageView.translatesAutoresizingMaskIntoConstraints = false
+            return imageView
+        }()
         
         private lazy var manualCaptureButton: UIButton = {
             let button = UIButton(type: .system)
@@ -295,16 +305,25 @@ extension CodeScannerView {
         }
 
         private func addviewfinder() {
-            guard showViewfinder, let imageView = viewFinder else { return }
-
+            guard showViewfinder, let imageView = self.parentView.codeTypes.contains(.code128) ? viewFinder : viewFinderSquare else { return }
+            
             view.addSubview(imageView)
 
-            NSLayoutConstraint.activate([
-                imageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-                imageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-//                imageView.widthAnchor.constraint(equalToConstant: 200),
-                imageView.heightAnchor.constraint(equalToConstant: 200),
-            ])
+            if(parentView.codeTypes.contains(.code128)) {
+                NSLayoutConstraint.activate([
+                    imageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                    imageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                    //                imageView.widthAnchor.constraint(equalToConstant: 200),
+                    imageView.heightAnchor.constraint(equalToConstant: 200),
+                ])
+            } else {
+                NSLayoutConstraint.activate([
+                    imageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                    imageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                    imageView.widthAnchor.constraint(equalToConstant: 200),
+                    imageView.heightAnchor.constraint(equalToConstant: 200),
+                ])
+            }
         }
 
         override public func viewDidDisappear(_ animated: Bool) {
