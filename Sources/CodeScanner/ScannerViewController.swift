@@ -143,7 +143,7 @@ extension CodeScannerView {
         }()
 
         private lazy var viewFinderSquare: UIImageView? = {
-            guard let image = UIImage(named: "viewfindersquare", in: .module, with: nil) else {
+            guard let image = UIImage(named: "viewFinderSquare", in: .module, with: nil) else {
                 return nil
             }
 
