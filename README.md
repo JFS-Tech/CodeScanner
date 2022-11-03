@@ -1,4 +1,6 @@
-# CodeScanner
+# CodeScanner - Adapted for the JFS Tech Mobile App
+
+This package was adapted as we wanted some custom and changed features.
 
 <p>
     <img src="https://img.shields.io/badge/iOS-13.0+-blue.svg" />
