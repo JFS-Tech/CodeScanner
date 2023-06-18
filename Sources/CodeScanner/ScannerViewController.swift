@@ -12,7 +12,7 @@ import UIKit
 @available(macCatalyst 14.0, *)
 extension CodeScannerView {
     
-    public class ScannerViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate, AVCaptureMetadataOutputObjectsDelegate {
+    public class ScannerViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate, AVCaptureMetadataOutputObjectsDelegate, UIAdaptivePresentationControllerDelegate {
         private let photoOutput = AVCapturePhotoOutput()
         private var isCapturing = false
         private var handler: ((UIImage) -> Void)?
@@ -46,6 +46,7 @@ extension CodeScannerView {
             isGalleryShowing = true
             let imagePicker = UIImagePickerController()
             imagePicker.delegate = self
+            imagePicker.presentationController?.delegate = self
             present(imagePicker, animated: true, completion: nil)
         }
         
@@ -64,15 +65,22 @@ extension CodeScannerView {
                 let features = detector.features(in: ciImage)
 
                 for feature in features as! [CIQRCodeFeature] {
-                    qrCodeLink += feature.messageString!
+                    qrCodeLink = feature.messageString!
+                    if qrCodeLink == "" {
+                        didFail(reason: .badOutput)
+                    } else {
+                        let corners = [
+                            feature.bottomLeft,
+                            feature.bottomRight,
+                            feature.topRight,
+                            feature.topLeft
+                        ]
+                        let result = ScanResult(string: qrCodeLink, type: .qr, image: qrcodeImg, corners: corners)
+                        found(result)
+                    }
+
                 }
 
-                if qrCodeLink == "" {
-                    didFail(reason: .badOutput)
-                } else {
-                    let result = ScanResult(string: qrCodeLink, type: .qr, image: qrcodeImg)
-                    found(result)
-                }
             } else {
                 print("Something went wrong")
             }
@@ -83,6 +91,11 @@ extension CodeScannerView {
         public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             isGalleryShowing = false
             dismiss(animated: true, completion: nil)
+        }
+
+        public func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+            // Gallery is no longer being presented
+            isGalleryShowing = false
         }
 
         #if targetEnvironment(simulator)
@@ -124,7 +137,7 @@ extension CodeScannerView {
             // Send back their simulated data, as if it was one of the types they were scanning for
             found(ScanResult(
                 string: parentView.simulatedData,
-                type: parentView.codeTypes.first ?? .qr, image: nil
+                type: parentView.codeTypes.first ?? .qr, image: nil, corners: []
             ))
         }
         
@@ -188,7 +201,18 @@ extension CodeScannerView {
         @objc func updateOrientation() {
             guard let orientation = view.window?.windowScene?.interfaceOrientation else { return }
             guard let connection = captureSession?.connections.last, connection.isVideoOrientationSupported else { return }
-            connection.videoOrientation = AVCaptureVideoOrientation(rawValue: orientation.rawValue) ?? .portrait
+            switch orientation {
+            case .portrait:
+                connection.videoOrientation = .portrait
+            case .landscapeLeft:
+                connection.videoOrientation = .landscapeLeft
+            case .landscapeRight:
+                connection.videoOrientation = .landscapeRight
+            case .portraitUpsideDown:
+                connection.videoOrientation = .portraitUpsideDown
+            default:
+                connection.videoOrientation = .portrait
+            }
         }
 
         override public func viewDidAppear(_ animated: Bool) {
@@ -453,7 +477,7 @@ extension CodeScannerView {
                 isCapturing = true
                 
                 handler = { [self] image in
-                    let result = ScanResult(string: stringValue, type: readableObject.type, image: image)
+                    let result = ScanResult(string: stringValue, type: readableObject.type, image: image, corners: readableObject.corners)
                     
                     switch parentView.scanMode {
                     case .once:
@@ -510,7 +534,12 @@ extension CodeScannerView {
 
 @available(macCatalyst 14.0, *)
 extension CodeScannerView.ScannerViewController: AVCapturePhotoCaptureDelegate {
-    public func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+    
+    public func photoOutput(
+        _ output: AVCapturePhotoOutput,
+        didFinishProcessingPhoto photo: AVCapturePhoto,
+        error: Error?
+    ) {
         isCapturing = false
         guard let imageData = photo.fileDataRepresentation() else {
             print("Error while generating image from photo capture data.");
@@ -521,5 +550,31 @@ extension CodeScannerView.ScannerViewController: AVCapturePhotoCaptureDelegate {
             return
         }
         handler?(qrImage)
-     }
+    }
+    
+    public func photoOutput(
+        _ output: AVCapturePhotoOutput,
+        willCapturePhotoFor resolvedSettings: AVCaptureResolvedPhotoSettings
+    ) {
+        AudioServicesDisposeSystemSoundID(1108)
+    }
+    
+    public func photoOutput(
+        _ output: AVCapturePhotoOutput,
+        didCapturePhotoFor resolvedSettings: AVCaptureResolvedPhotoSettings
+    ) {
+        AudioServicesDisposeSystemSoundID(1108)
+    }
+    
+}
+
+@available(macCatalyst 14.0, *)
+public extension AVCaptureDevice {
+    
+    /// This returns the Ultra Wide Camera on capable devices and the default Camera for Video otherwise.
+    static var bestForVideo: AVCaptureDevice? {
+        let deviceHasUltraWideCamera = !AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInUltraWideCamera], mediaType: .video, position: .back).devices.isEmpty
+        return deviceHasUltraWideCamera ? AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .back) : AVCaptureDevice.default(for: .video)
+    }
+    
 }
